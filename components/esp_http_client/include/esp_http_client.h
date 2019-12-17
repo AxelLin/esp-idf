@@ -131,6 +131,7 @@ typedef enum {
     /* 3xx - Redirection */
     HttpStatus_MovedPermanently  = 301,
     HttpStatus_Found             = 302,
+    HttpStatus_TemporaryRedirect = 307,
 
     /* 4xx - Client Error */
     HttpStatus_Unauthorized      = 401
@@ -310,7 +311,7 @@ esp_err_t esp_http_client_set_password(esp_http_client_handle_t client, char *pa
  * @brief      Set http request auth_type.
  *
  * @param[in]  client    The esp_http_client handle
- * @param[in]  authtype  The auth_type
+ * @param[in]  auth_type The esp_http_client auth type
  *
  * @return
  *     - ESP_OK
