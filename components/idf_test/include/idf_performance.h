@@ -1,15 +1,22 @@
 #pragma once
 
 /* declare the performance here */
-#define IDF_PERFORMANCE_MAX_HTTPS_REQUEST_BIN_SIZE                              800
+#define IDF_PERFORMANCE_MAX_HTTPS_REQUEST_BIN_SIZE                              900
 #define IDF_PERFORMANCE_MAX_FREERTOS_SPINLOCK_CYCLES_PER_OP                     200
 #define IDF_PERFORMANCE_MAX_FREERTOS_SPINLOCK_CYCLES_PER_OP_PSRAM               300
 #define IDF_PERFORMANCE_MAX_FREERTOS_SPINLOCK_CYCLES_PER_OP_UNICORE             130
 #define IDF_PERFORMANCE_MAX_ESP_TIMER_GET_TIME_PER_CALL                         1000
-#define IDF_PERFORMANCE_MAX_SPI_PER_TRANS_NO_POLLING                            30
-#define IDF_PERFORMANCE_MAX_SPI_PER_TRANS_NO_POLLING_NO_DMA                     27
+
+#define IDF_PERFORMANCE_MAX_SPI_PER_TRANS_NO_POLLING_ESP32                      30
+#define IDF_PERFORMANCE_MAX_SPI_PER_TRANS_NO_POLLING_NO_DMA_ESP32               27
+
+#define IDF_PERFORMANCE_MAX_SPI_PER_TRANS_NO_POLLING_ESP32S2                    32
+#define IDF_PERFORMANCE_MAX_SPI_PER_TRANS_NO_POLLING_NO_DMA_ESP32S2             30
+
 #define IDF_PERFORMANCE_MAX_SPI_PER_TRANS_POLLING                               15
 #define IDF_PERFORMANCE_MAX_SPI_PER_TRANS_POLLING_NO_DMA                        15
+
+
 /* Due to code size & linker layout differences interacting with cache, VFS
    microbenchmark currently runs slower with PSRAM enabled. */
 #define IDF_PERFORMANCE_MAX_VFS_OPEN_WRITE_CLOSE_TIME                           20000
@@ -31,8 +38,8 @@
 #define IDF_PERFORMANCE_MAX_ISR_ENTER_CYCLES                                    290
 #define IDF_PERFORMANCE_MAX_ISR_EXIT_CYCLES                                     565
 
-#define IDF_PERFORMANCE_MIN_SDIO_THROUGHPUT_MBSEC_TOHOST_4BIT                   13000
-#define IDF_PERFORMANCE_MIN_SDIO_THROUGHPUT_MBSEC_FRHOST_4BIT                   13000
+#define IDF_PERFORMANCE_MIN_SDIO_THROUGHPUT_MBSEC_TOHOST_4BIT                   12500
+#define IDF_PERFORMANCE_MIN_SDIO_THROUGHPUT_MBSEC_FRHOST_4BIT                   12500
 #define IDF_PERFORMANCE_MIN_SDIO_THROUGHPUT_MBSEC_TOHOST_1BIT                   4000
 #define IDF_PERFORMANCE_MIN_SDIO_THROUGHPUT_MBSEC_FRHOST_1BIT                   4000
 #define IDF_PERFORMANCE_MIN_SDIO_THROUGHPUT_MBSEC_TOHOST_SPI                    1000

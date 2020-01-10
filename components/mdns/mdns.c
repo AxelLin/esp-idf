@@ -56,6 +56,18 @@ static esp_netif_t * s_esp_netifs[MDNS_IF_MAX] = {};
 esp_netif_t *_mdns_get_esp_netif(mdns_if_t tcpip_if)
 {
     if (tcpip_if < MDNS_IF_MAX) {
+        if (s_esp_netifs[tcpip_if] == NULL) {
+            // if local netif copy is NULL, try to search for the default interface key
+            if (tcpip_if == MDNS_IF_STA) {
+                s_esp_netifs[MDNS_IF_STA] = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+            } else if (tcpip_if == MDNS_IF_AP) {
+                s_esp_netifs[MDNS_IF_AP] = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+#if CONFIG_ETH_ENABLED
+            } else if (tcpip_if == MDNS_IF_ETH) {
+                s_esp_netifs[MDNS_IF_ETH] = esp_netif_get_handle_from_ifkey("ETH_DEF");
+#endif
+            }
+        }
         return s_esp_netifs[tcpip_if];
     }
     return NULL;
@@ -3106,17 +3118,6 @@ static void _mdns_handle_system_event(esp_event_base_t event_base,
         return;
     }
 
-    // Initialize handles to esp-netif if appropriate mdns supported interface started
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-        s_esp_netifs[MDNS_IF_STA] = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_START) {
-        s_esp_netifs[MDNS_IF_AP] = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
-#if CONFIG_ETH_ENABLED
-    } else if (event_base == ETH_EVENT && event_id == ETHERNET_EVENT_START) {
-        s_esp_netifs[MDNS_IF_ETH] = esp_netif_get_handle_from_ifkey("ETH_DEF");
-#endif
-    }
-
     esp_netif_dhcp_status_t dcst;
     if (event_base == WIFI_EVENT) {
         switch(event_id) {
@@ -4231,6 +4232,8 @@ esp_err_t mdns_init(void)
         return ESP_ERR_NO_MEM;
     }
     memset((uint8_t*)_mdns_server, 0, sizeof(mdns_server_t));
+    // zero-out local copy of netifs to initiate a fresh search by interface key whenever a netif ptr is needed
+    memset(s_esp_netifs, 0, sizeof(s_esp_netifs));
 
     _mdns_server->lock = xSemaphoreCreateMutex();
     if (!_mdns_server->lock) {
@@ -4301,6 +4304,14 @@ void mdns_free(void)
     if (!_mdns_server) {
         return;
     }
+
+    // Unregister handlers before destoying the mdns internals to avoid receiving asyc events while deinit
+    esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler);
+    esp_event_handler_unregister(IP_EVENT, ESP_EVENT_ANY_ID, &event_handler);
+#if CONFIG_ETH_ENABLED
+    esp_event_handler_unregister(ETH_EVENT, ESP_EVENT_ANY_ID, &event_handler);
+#endif
+
     mdns_service_remove_all();
     _mdns_service_task_stop();
     for (i=0; i<MDNS_IF_MAX; i++) {
@@ -4331,11 +4342,6 @@ void mdns_free(void)
         free(h);
     }
     vSemaphoreDelete(_mdns_server->lock);
-    esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler);
-    esp_event_handler_unregister(IP_EVENT, ESP_EVENT_ANY_ID, &event_handler);
-#if CONFIG_ETH_ENABLED
-    esp_event_handler_unregister(ETH_EVENT, ESP_EVENT_ANY_ID, &event_handler);
-#endif
     free(_mdns_server);
     _mdns_server = NULL;
 }

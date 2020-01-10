@@ -267,7 +267,6 @@ function run_tests()
     mv main/Kconfig.projbuild_bak main/Kconfig.projbuild
     assert_built ${APP_BINS} ${BOOTLOADER_BINS} ${PARTITION_BIN}
 
-
     print_status "can build with phy_init_data"
     idf.py clean > /dev/null
     idf.py fullclean > /dev/null
@@ -293,49 +292,42 @@ function run_tests()
     rm sdkconfig
     rm sdkconfig.defaults
 
-    # Next two tests will use this fake 'esp31b' target
-    export fake_target=esp31b
-    mkdir -p components/$fake_target
-    mkdir -p ${IDF_PATH}/components/xtensa/$fake_target/include
-    touch components/$fake_target/CMakeLists.txt
-    cp ${IDF_PATH}/tools/cmake/toolchain-esp32.cmake components/$fake_target/toolchain-$fake_target.cmake
-    ${SED} -i.bak '/cmake_minimum_required/ a\
-        set(COMPONENTS esptool_py)' CMakeLists.txt
+    # the next four tests use the esp32s2beta target
+    export other_target=esp32s2beta
 
     print_status "Can override IDF_TARGET from environment"
     clean_build_dir
     rm sdkconfig
-    export IDF_TARGET=$fake_target
+    export IDF_TARGET=$other_target
     (cd build && cmake -G Ninja .. ) || failure "Failed to configure with IDF_TARGET set in environment"
-    grep "CONFIG_IDF_TARGET=\"${fake_target}\"" sdkconfig || failure "Project not configured for IDF_TARGET correctly"
-    grep "IDF_TARGET:STRING=${fake_target}" build/CMakeCache.txt || failure "IDF_TARGET not set in CMakeCache.txt"
+    grep "CONFIG_IDF_TARGET=\"${other_target}\"" sdkconfig || failure "Project not configured for IDF_TARGET correctly"
+    grep "IDF_TARGET:STRING=${other_target}" build/CMakeCache.txt || failure "IDF_TARGET not set in CMakeCache.txt"
     unset IDF_TARGET
 
     print_status "Can set target using idf.py -D"
     clean_build_dir
     rm sdkconfig
-    idf.py -DIDF_TARGET=$fake_target reconfigure || failure "Failed to set target via idf.py"
-    grep "CONFIG_IDF_TARGET=\"${fake_target}\"" sdkconfig || failure "Project not configured correctly using idf.py -D"
-    grep "IDF_TARGET:STRING=${fake_target}" build/CMakeCache.txt || failure "IDF_TARGET not set in CMakeCache.txt using idf.py -D"
+    idf.py -DIDF_TARGET=$other_target reconfigure || failure "Failed to set target via idf.py"
+    grep "CONFIG_IDF_TARGET=\"${other_target}\"" sdkconfig || failure "Project not configured correctly using idf.py -D"
+    grep "IDF_TARGET:STRING=${other_target}" build/CMakeCache.txt || failure "IDF_TARGET not set in CMakeCache.txt using idf.py -D"
 
     print_status "Can set target using -D as subcommand parameter for idf.py"
     clean_build_dir
     rm sdkconfig
-    idf.py reconfigure -DIDF_TARGET=$fake_target || failure "Failed to set target via idf.py subcommand -D parameter"
-    grep "CONFIG_IDF_TARGET=\"${fake_target}\"" sdkconfig || failure "Project not configured correctly using idf.py reconfigure -D"
-    grep "IDF_TARGET:STRING=${fake_target}" build/CMakeCache.txt || failure "IDF_TARGET not set in CMakeCache.txt using idf.py reconfigure -D"
+    idf.py reconfigure -DIDF_TARGET=$other_target || failure "Failed to set target via idf.py subcommand -D parameter"
+    grep "CONFIG_IDF_TARGET=\"${other_target}\"" sdkconfig || failure "Project not configured correctly using idf.py reconfigure -D"
+    grep "IDF_TARGET:STRING=${other_target}" build/CMakeCache.txt || failure "IDF_TARGET not set in CMakeCache.txt using idf.py reconfigure -D"
 
-    real_target=esp32s2beta
     print_status "Can set target using idf.py set-target"
     clean_build_dir
     rm sdkconfig
-    idf.py set-target ${real_target} || failure "Failed to set target via idf.py set-target"
-    grep "CONFIG_IDF_TARGET=\"${real_target}\"" sdkconfig || failure "Project not configured correctly using idf.py set-target"
-    grep "IDF_TARGET:STRING=${real_target}" build/CMakeCache.txt || failure "IDF_TARGET not set in CMakeCache.txt using idf.py set-target"
+    idf.py set-target ${other_target} || failure "Failed to set target via idf.py set-target"
+    grep "CONFIG_IDF_TARGET=\"${other_target}\"" sdkconfig || failure "Project not configured correctly using idf.py set-target"
+    grep "IDF_TARGET:STRING=${other_target}" build/CMakeCache.txt || failure "IDF_TARGET not set in CMakeCache.txt using idf.py set-target"
 
-    # Clean up modifications for the fake target
-    mv CMakeLists.txt.bak CMakeLists.txt
-    rm -rf components sdkconfig build
+    unset other_target  # done changing target from the default
+    clean_build_dir
+    rm sdkconfig
 
     print_status "Can build with auto generated CMakeLists.txt"
     clean_build_dir
@@ -556,8 +548,8 @@ endmenu\n" >> ${IDF_PATH}/Kconfig
     idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults1;sdkconfig.defaults2" reconfigure > /dev/null
     grep "CONFIG_PARTITION_TABLE_OFFSET=0x10000" sdkconfig || failure "The define from sdkconfig.defaults1 should be in sdkconfig"
     grep "CONFIG_PARTITION_TABLE_TWO_OTA=y" sdkconfig || failure "The define from sdkconfig.defaults2 should be in sdkconfig"
-    rm sdkconfig.defaults1
-    rm sdkconfig.defaults2
+    rm sdkconfig.defaults1 sdkconfig.defaults2 sdkconfig
+    git checkout sdkconfig.defaults
 
     print_status "Supports git worktree"
     clean_build_dir
@@ -576,6 +568,17 @@ endmenu\n" >> ${IDF_PATH}/Kconfig
     grep "${msg}" log.txt 1>/dev/null || failure "Custom target did not produce expected output"
     git checkout CMakeLists.txt
     rm -f log.txt
+
+    print_status "Compiles with dependencies delivered by component manager"
+    clean_build_dir
+    printf "\n#include \"test_component.h\"\n" >> main/main.c
+    printf "dependencies:\n  test_component:\n    path: test_component\n    git: ${COMPONENT_MANAGER_TEST_REPO}\n" >> idf_project.yml
+    ! idf.py build || failure "Build should fail if dependencies are not installed"
+    pip install ${COMPONENT_MANAGER_REPO}
+    idf.py reconfigure build || failure "Build succeeds once requirements are installed"
+    pip uninstall -y idf_component_manager
+    rm idf_project.yml
+    git checkout main/main.c
 
     print_status "All tests completed"
     if [ -n "${FAILURES}" ]; then
