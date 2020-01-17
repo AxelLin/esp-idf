@@ -90,7 +90,6 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 --------------------------------------------------------------------------------
 */
-
 #include <stdlib.h>
 #include <string.h>
 #include <xtensa/config/core.h>
@@ -109,6 +108,7 @@
 #include "esp_intr_alloc.h"
 #include "esp_log.h"
 #include "sdkconfig.h"
+#include "esp_compiler.h"
 
 /* Defined in portasm.h */
 extern void _frxt_tick_timer_init(void);
@@ -443,6 +443,9 @@ static portMUX_TYPE extram_mux = portMUX_INITIALIZER_UNLOCKED;
 
 void uxPortCompareSetExtram(volatile uint32_t *addr, uint32_t compare, uint32_t *set) {
 	uint32_t prev;
+
+	uint32_t oldlevel = portENTER_CRITICAL_NESTED();
+
 #ifdef CONFIG_FREERTOS_PORTMUX_DEBUG
 	vPortCPUAcquireMutexIntsDisabled(&extram_mux, portMUX_NO_TIMEOUT, __FUNCTION__, __LINE__);
 #else
@@ -458,6 +461,8 @@ void uxPortCompareSetExtram(volatile uint32_t *addr, uint32_t compare, uint32_t 
 #else
 	vPortCPUReleaseMutexIntsDisabled(&extram_mux);
 #endif
+
+	portEXIT_CRITICAL_NESTED(oldlevel);
 }
 #endif //defined(CONFIG_SPIRAM)
 
